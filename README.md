@@ -9,7 +9,7 @@ Spec: `Infoco_Sistemas/specs/022-kit-vue-agente-infoco`.
 Sempre por tag:
 
 ```bash
-npm i github:nandovitor/infoco-ui#v0.1.0
+npm i github:nandovitor/infoco-ui#v0.1.1
 ```
 
 ```ts
@@ -45,6 +45,8 @@ O agente aparece como um símbolo flutuando no canto inferior direito. Ele respo
 import { montarAgente } from 'infoco-ui/agente';
 const tirar = montarAgente({ endpoint: '/api/agente', entrar: '/' });
 ```
+
+Se a tela tem uma ação no canto inferior direito, como o "Enviar" de um chat, ela sobe o botão do agente com `--iu-agente-baixo`, por exemplo `document.documentElement.style.setProperty('--iu-agente-baixo', '84px')`.
 
 **Em página sem build** (FAQ, Documentos para o TCM): copie `dist/agente.js` e `dist/agente.css` para a página.
 

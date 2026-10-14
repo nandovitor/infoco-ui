@@ -1,6 +1,6 @@
 {
   "name": "infoco-ui",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Kit visual da INFOCO em Vue 3: cores e layout do FAQ, comportamento dos componentes do SICC e o Agente INFOCO.",
   "license": "UNLICENSED",
   "type": "module",
@@ -22,7 +22,7 @@
     "typecheck": "vue-tsc --noEmit",
     "build": "vue-tsc --noEmit && vite build --config vite.agente.config.ts",
     "demo": "vite build",
-    "test": "vitest run"
+    "test": "vitest run --root ."
   },
   "peerDependencies": {
     "vue": "^3.5.0"

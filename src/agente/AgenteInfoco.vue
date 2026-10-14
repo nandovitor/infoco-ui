@@ -198,8 +198,9 @@ watch(enviando, (agora, antes) => {
 .iu-agente { position: fixed; right: 0; bottom: 0; z-index: 90; }
 
 /* ── o símbolo flutuando ── */
+/* Tela com ação no canto (o "Enviar" de um chat) sobe o botão com --iu-agente-baixo. */
 .iu-agente__botao {
-  position: fixed; right: 22px; bottom: 22px;
+  position: fixed; right: 22px; bottom: var(--iu-agente-baixo, 22px);
   width: 60px; height: 60px; padding: 0; border: 1px solid var(--iu-linha); border-radius: 50%;
   background: var(--iu-branco); display: grid; place-items: center; cursor: pointer;
   box-shadow: 0 8px 20px -6px rgba(18, 59, 115, 0.35);
@@ -286,7 +287,7 @@ watch(enviando, (agora, antes) => {
 .iu-agente__rodape { padding: 0 12px 10px; background: var(--iu-branco); font-size: 13px; line-height: 1.35; color: var(--iu-tinta-48); text-align: center; }
 
 @media (max-width: 480px) {
-  .iu-agente__botao { right: 14px; bottom: 14px; }
+  .iu-agente__botao { right: 14px; bottom: var(--iu-agente-baixo, 14px); }
   .iu-agente__dica { display: none; }
   .iu-agente__painel { inset: 0; width: 100%; height: 100dvh; border: 0; border-radius: 0; }
 }
