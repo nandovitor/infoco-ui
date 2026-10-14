@@ -9,7 +9,7 @@ Spec: `Infoco_Sistemas/specs/022-kit-vue-agente-infoco`.
 Sempre por tag:
 
 ```bash
-npm i github:nandovitor/infoco-ui#v0.2.2
+npm i github:nandovitor/infoco-ui#v0.2.3
 ```
 
 ```ts

@@ -2,24 +2,31 @@
   BlurText — Vue Bits (registro @vue-bits/BlurText, https://vue-bits.dev).
   Mudou em relação ao registro: a palavra e o espaço ficaram na mesma linha do
   modelo — com a quebra, cada palavra saía com dois espaços depois dela.
+  Também (kit infoco-ui, 14/10/2026): `as="span"` no lugar de `tag="span"`
+  (o motion-v ignora `tag` e criava <div> dentro do <p>), e com "reduzir
+  movimento" o texto aparece direto, sem animação.
 -->
 <template>
   <p ref="rootRef" class="iu-blur-text" style="display: flex; flex-wrap: wrap" :class="className">
+    <template v-if="semMovimento">{{ text }}</template>
+    <template v-else>
     <Motion
       v-for="(segment, index) in elements"
       :key="index"
-      tag="span"
+      as="span"
       :initial="fromSnapshot"
       :animate="inView ? buildKeyframes(fromSnapshot, toSnapshots) : fromSnapshot"
       :transition="getTransition(index)"
       @animation-complete="handleAnimationComplete(index)"
       style="display: inline-block; will-change: transform, filter, opacity"
     >{{ segment === ' ' ? '\u00A0' : segment }}<template v-if="animateBy === 'words' && index < elements.length - 1">&nbsp;</template></Motion>
+    </template>
   </p>
 </template>
 
 <script setup lang="ts">
 import { Motion, type Transition } from 'motion-v';
+import { useMediaQuery } from '@vueuse/core';
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 
 type BlurTextProps = {
@@ -62,6 +69,7 @@ const props = withDefaults(defineProps<BlurTextProps>(), {
   stepDuration: 0.35
 });
 
+const semMovimento = useMediaQuery('(prefers-reduced-motion: reduce)');
 const inView = ref(false);
 const rootRef = useTemplateRef<HTMLParagraphElement>('rootRef');
 let observer: IntersectionObserver | null = null;
