@@ -9,7 +9,7 @@ Spec: `Infoco_Sistemas/specs/022-kit-vue-agente-infoco`.
 Sempre por tag:
 
 ```bash
-npm i github:nandovitor/infoco-ui#v0.2.0
+npm i github:nandovitor/infoco-ui#v0.2.1
 ```
 
 ```ts
@@ -52,6 +52,7 @@ O agente aceita estas opções:
 |---|---|
 | `exemplos` | até 4 perguntas de exemplo |
 | `descricao` | a linha do painel vazio |
+| `subtitulo` | a linha embaixo do nome, no cabeçalho |
 | `contexto` | função que devolve `{ secao, trecho }` da página |
 | `voz` | `{ endpoint: '/api/ia/voz', uilber: true }`: leitura automática da resposta e o botão "Ouvir na voz do Uilber" |
 

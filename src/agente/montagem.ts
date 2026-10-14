@@ -14,6 +14,8 @@ export interface OpcoesAgente {
   exemplos?: string[];
   /** A linha que diz o que o agente faz, no painel vazio. */
   descricao?: string;
+  /** A linha embaixo do nome, no cabeçalho. */
+  subtitulo?: string;
   /** Onde a pessoa está na página (seção, trecho), lido a cada pergunta. */
   contexto?: () => Contexto | undefined;
   /** Liga a leitura em voz alta (e a voz do Uilber). */

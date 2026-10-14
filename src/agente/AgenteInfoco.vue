@@ -34,6 +34,8 @@ const props = withDefaults(defineProps<{
   exemplos?: string[];
   /** A linha que diz o que o agente faz, no painel vazio. */
   descricao?: string;
+  /** A linha embaixo do nome, no cabeçalho do painel. */
+  subtitulo?: string;
   /** Onde a pessoa está na página, lido a cada pergunta. */
   contexto?: () => Contexto | undefined;
   /** Liga a voz: leitura automática da resposta e, com `uilber`, a voz dele. */
@@ -47,6 +49,7 @@ const props = withDefaults(defineProps<{
     'O que a Lei 14.133 diz sobre inexigibilidade?',
   ],
   descricao: 'Licitações, contratos e pagamentos no PNCP e no TCM-BA, processos coletados do e-TCM e a base do TCU.',
+  subtitulo: 'PNCP, TCM-BA e outras fontes públicas',
 });
 
 const { estado, enviar, repetir, parar, nova } = usarConversa(props.endpoint);
@@ -168,7 +171,7 @@ watch(enviando, (agora, antes) => {
         <img :src="simbolo" alt="" width="34" height="34" class="iu-agente__marca" :class="{ 'iu-agente__marca--falando': voz.falando.value !== null }">
         <div class="iu-agente__nome">
           <h2 id="iu-agente-titulo">Agente INFOCO</h2>
-          <p>PNCP, TCM-BA e outras fontes públicas</p>
+          <p>{{ subtitulo }}</p>
         </div>
         <button
           v-if="props.voz"
