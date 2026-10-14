@@ -9,7 +9,7 @@ Spec: `Infoco_Sistemas/specs/022-kit-vue-agente-infoco`.
 Sempre por tag:
 
 ```bash
-npm i github:nandovitor/infoco-ui#v0.1.1
+npm i github:nandovitor/infoco-ui#v0.2.0
 ```
 
 ```ts
@@ -46,15 +46,29 @@ import { montarAgente } from 'infoco-ui/agente';
 const tirar = montarAgente({ endpoint: '/api/agente', entrar: '/' });
 ```
 
+O agente aceita estas opções:
+
+| Opção | O que faz |
+|---|---|
+| `exemplos` | até 4 perguntas de exemplo |
+| `descricao` | a linha do painel vazio |
+| `contexto` | função que devolve `{ secao, trecho }` da página |
+| `voz` | `{ endpoint: '/api/ia/voz', uilber: true }`: leitura automática da resposta e o botão "Ouvir na voz do Uilber" |
+
+O controle devolvido tem `abrir(texto?)`, `fechar()`, `perguntar(texto)`, `comTrecho(trecho, secao?)` e `tirar()`. A cada pergunta, a janela recebe o evento `agente-infoco:pergunta` (`{caracteres, comTrecho}`) para medir o uso.
+
 Se a tela tem uma ação no canto inferior direito, como o "Enviar" de um chat, ela sobe o botão do agente com `--iu-agente-baixo`, por exemplo `document.documentElement.style.setProperty('--iu-agente-baixo', '84px')`.
 
 **Em página sem build** (FAQ, Documentos para o TCM): copie `dist/agente.js` e `dist/agente.css` para a página.
 
 ```html
 <link rel="stylesheet" href="/assets/agente.css">
+<script>window.agenteInfocoOpcoes = { exemplos: ['…'], voz: { endpoint: '/api/ia/voz', uilber: true } };</script>
 <script src="/assets/agente.js" defer data-endpoint="/api/agente"
         data-simbolo="/assets/logo-simbolo.png" data-entrar="/login"></script>
 ```
+
+Na página sem build, o contexto vem de `window.__iaContexto()` quando ela o define. O controle fica em `window.agenteInfoco` e também em `window.infocoIA`, o nome da Infoco I.A que o agente substituiu no FAQ.
 
 ## Desenvolver
 

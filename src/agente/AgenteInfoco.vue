@@ -8,14 +8,20 @@
  *
  * Só consulta (PNCP, TCM-BA, acervo de Processos do TCM, TCU, Transferegov,
  * DataJud): quem decide o que ele pode fazer é o servidor.
+ *
+ * O que a página pode ligar (o FAQ liga tudo, porque o agente ocupou o lugar
+ * da Infoco I.A de lá): exemplos e descrição próprios, o contexto da página
+ * (seção que a pessoa lê e trecho que destacou), a voz (leitura automática
+ * da resposta e "Ouvir na voz do Uilber") e os métodos expostos abaixo.
  */
 import { onKeyStroke, useMediaQuery } from '@vueuse/core';
-import { ArrowUp, RotateCcw, Square, X } from 'lucide-vue-next';
+import { ArrowUp, LoaderCircle, RotateCcw, Square, Volume2, VolumeX, X } from 'lucide-vue-next';
 import { computed, nextTick, ref, watch } from 'vue';
 import BlurText from '../vuebits/BlurText.vue';
 import { anunciar } from '../util';
-import { usarConversa } from './conversa';
+import { usarConversa, type Contexto } from './conversa';
 import Texto from './Texto.vue';
+import { usarVoz, type OpcoesVoz } from './voz';
 
 const props = withDefaults(defineProps<{
   /** Onde a pergunta é enviada: `/api/agente` no sistema interno e no FAQ. */
@@ -24,15 +30,30 @@ const props = withDefaults(defineProps<{
   simbolo: string;
   /** Para onde mandar quando a sessão termina. */
   entrar?: string;
-}>(), { endpoint: '/api/agente', entrar: '/' });
-
-const EXEMPLOS = [
-  'Quais licitações a Prefeitura de Itabuna informou ao TCM em 2026?',
-  'Busque no PNCP pregões de merenda escolar na Bahia',
-  'O que a Lei 14.133 diz sobre inexigibilidade?',
-];
+  /** Perguntas de exemplo do painel vazio (até 4). */
+  exemplos?: string[];
+  /** A linha que diz o que o agente faz, no painel vazio. */
+  descricao?: string;
+  /** Onde a pessoa está na página, lido a cada pergunta. */
+  contexto?: () => Contexto | undefined;
+  /** Liga a voz: leitura automática da resposta e, com `uilber`, a voz dele. */
+  voz?: OpcoesVoz;
+}>(), {
+  endpoint: '/api/agente',
+  entrar: '/',
+  exemplos: () => [
+    'Quais licitações a Prefeitura de Itabuna informou ao TCM em 2026?',
+    'Busque no PNCP pregões de merenda escolar na Bahia',
+    'O que a Lei 14.133 diz sobre inexigibilidade?',
+  ],
+  descricao: 'Licitações, contratos e pagamentos no PNCP e no TCM-BA, processos coletados do e-TCM e a base do TCU.',
+});
 
 const { estado, enviar, repetir, parar, nova } = usarConversa(props.endpoint);
+const voz = usarVoz(props.voz);
+// Ligada por padrão, como na Infoco I.A; não fica guardada (volta ligada ao recarregar).
+const vozLigada = ref(true);
+const trecho = ref<{ texto: string; secao?: string } | null>(null);
 const semMovimento = useMediaQuery('(prefers-reduced-motion: reduce)');
 const aberto = ref(false);
 const pergunta = ref('');
@@ -44,14 +65,18 @@ const enviando = computed(() => estado.situacao === 'enviando');
 const vazia = computed(() => estado.mensagens.length === 0);
 const ultima = computed(() => estado.mensagens[estado.mensagens.length - 1]);
 
-const abrir = async () => {
+/** Abre o painel; com `texto`, deixa a pergunta escrita no campo, sem enviar. */
+const abrir = async (texto?: string) => {
   aberto.value = true;
+  if (texto) pergunta.value = texto;
   await nextTick();
   rolarParaFim();
+  ajustarAltura();
   campo.value?.focus();
 };
 const fechar = () => {
   aberto.value = false;
+  voz.calar();
   void nextTick(() => botao.value?.focus());
 };
 onKeyStroke('Escape', (e) => { if (aberto.value) { e.preventDefault(); fechar(); } });
@@ -63,12 +88,36 @@ const ajustarAltura = () => {
   c.style.height = `${Math.min(c.scrollHeight, 132)}px`;
 };
 
+const contextoAtual = (): Contexto => {
+  let daPagina: Contexto | undefined;
+  try { daPagina = props.contexto?.(); } catch { /* página com erro no contexto: segue sem ele */ }
+  // O trecho destacado acompanha a conversa até ser descartado; a seção dele vence a da tela.
+  return { secao: trecho.value?.secao || daPagina?.secao, trecho: trecho.value?.texto || daPagina?.trecho };
+};
+
 const mandar = (texto = pergunta.value) => {
   if (!texto.trim() || enviando.value) return;
-  void enviar(texto);
+  voz.calar();
+  void enviar(texto, contextoAtual());
   pergunta.value = '';
   void nextTick(ajustarAltura);
 };
+
+/** Abre e envia já: os botões da página que levam direto a um assunto. */
+const perguntar = (texto: string) => { void abrir(); mandar(texto); };
+/** Ancora as próximas perguntas num trecho da página e abre o painel. */
+const comTrecho = (texto: string, secao?: string) => {
+  const limpo = String(texto || '').trim().slice(0, 1500);
+  trecho.value = limpo ? { texto: limpo, secao } : null;
+  void abrir();
+};
+
+const alternarVoz = () => {
+  vozLigada.value = !vozLigada.value;
+  if (!vozLigada.value) voz.calar();
+};
+
+defineExpose({ abrir, fechar, perguntar, comTrecho });
 
 const aoTeclar = (e: KeyboardEvent) => {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); mandar(); }
@@ -86,7 +135,10 @@ watch(() => [ultima.value?.texto, estado.consultando, estado.mensagens.length], 
   if (pertoDoFim) void nextTick(rolarParaFim);
 });
 watch(enviando, (agora, antes) => {
-  if (antes && !agora) anunciar(ultima.value?.erro ? 'A resposta foi interrompida.' : 'Resposta pronta.');
+  if (!antes || agora) return;
+  const m = ultima.value;
+  anunciar(m?.erro ? 'A resposta foi interrompida.' : 'Resposta pronta.');
+  if (props.voz && vozLigada.value && aberto.value && m?.papel === 'agente' && m.texto && !m.erro) void voz.falar(m.id, m.texto);
 });
 </script>
 
@@ -99,7 +151,7 @@ watch(enviando, (agora, antes) => {
       class="iu-agente__botao"
       aria-label="Agente INFOCO: pergunte sobre um processo"
       aria-haspopup="dialog"
-      @click="abrir"
+      @click="abrir()"
     >
       <img :src="simbolo" alt="" width="36" height="36">
       <span class="iu-agente__dica" aria-hidden="true">Agente INFOCO</span>
@@ -113,12 +165,24 @@ watch(enviando, (agora, antes) => {
       aria-labelledby="iu-agente-titulo"
     >
       <header class="iu-agente__cabeca">
-        <img :src="simbolo" alt="" width="34" height="34" class="iu-agente__marca">
+        <img :src="simbolo" alt="" width="34" height="34" class="iu-agente__marca" :class="{ 'iu-agente__marca--falando': voz.falando.value !== null }">
         <div class="iu-agente__nome">
           <h2 id="iu-agente-titulo">Agente INFOCO</h2>
           <p>PNCP, TCM-BA e outras fontes públicas</p>
         </div>
-        <button v-if="!vazia" type="button" class="iu-botao iu-botao--icone" aria-label="Nova conversa" title="Nova conversa" @click="nova">
+        <button
+          v-if="props.voz"
+          type="button"
+          class="iu-botao iu-botao--icone"
+          :aria-pressed="vozLigada"
+          :aria-label="vozLigada ? 'Desligar a leitura em voz alta' : 'Ligar a leitura em voz alta'"
+          :title="vozLigada ? 'Desligar a voz' : 'Ligar a voz'"
+          @click="alternarVoz"
+        >
+          <Volume2 v-if="vozLigada" class="iu-icone" aria-hidden="true" />
+          <VolumeX v-else class="iu-icone" aria-hidden="true" />
+        </button>
+        <button v-if="!vazia" type="button" class="iu-botao iu-botao--icone" aria-label="Nova conversa" title="Nova conversa" @click="() => { voz.calar(); nova(); }">
           <RotateCcw class="iu-icone" aria-hidden="true" />
         </button>
         <button type="button" class="iu-botao iu-botao--icone" aria-label="Fechar" title="Fechar" @click="fechar">
@@ -130,16 +194,19 @@ watch(enviando, (agora, antes) => {
         <div v-if="vazia" class="iu-agente__vazio">
           <p v-if="semMovimento" class="iu-agente__boas-vindas">Pergunte sobre um processo</p>
           <BlurText v-else text="Pergunte sobre um processo" :delay="90" animate-by="words" direction="top" class-name="iu-agente__boas-vindas" />
-          <p class="iu-agente__explica">Licitações, contratos e pagamentos no PNCP e no TCM-BA, processos coletados do e-TCM e a base do TCU.</p>
+          <p class="iu-agente__explica">{{ descricao }}</p>
           <ul class="iu-agente__exemplos" aria-label="Perguntas de exemplo">
-            <li v-for="ex in EXEMPLOS" :key="ex">
+            <li v-for="ex in exemplos.slice(0, 4)" :key="ex">
               <button type="button" @click="mandar(ex)">{{ ex }}</button>
             </li>
           </ul>
         </div>
 
         <template v-for="m in estado.mensagens" :key="m.id">
-          <p v-if="m.papel === 'pessoa'" class="iu-agente__balao iu-agente__balao--pessoa">{{ m.texto }}</p>
+          <p v-if="m.papel === 'pessoa'" class="iu-agente__balao iu-agente__balao--pessoa">
+            <q v-if="m.trecho" class="iu-agente__citacao">{{ m.trecho.length > 220 ? `${m.trecho.slice(0, 220)}…` : m.trecho }}</q>
+            {{ m.texto }}
+          </p>
           <article v-else-if="m.texto || m.erro" class="iu-agente__balao iu-agente__balao--agente" aria-label="Resposta do agente">
             <Texto v-if="m.texto" :texto="m.texto" />
             <p v-if="m.fontes?.length" class="iu-agente__fontes">
@@ -152,8 +219,20 @@ watch(enviando, (agora, antes) => {
             </p>
             <p v-if="m.erro" class="iu-agente__erro">
               {{ m.erro }}
-              <button v-if="m === ultima && !enviando" type="button" class="iu-botao iu-botao--discreto" @click="repetir">Tentar novamente</button>
+              <button v-if="m === ultima && !enviando" type="button" class="iu-botao iu-botao--discreto" @click="repetir(contextoAtual())">Tentar novamente</button>
             </p>
+            <button
+              v-if="props.voz?.uilber && m.texto && !m.erro && !(enviando && m === ultima)"
+              type="button"
+              class="iu-agente__ouvir"
+              :aria-pressed="voz.falando.value === m.id"
+              @click="voz.falando.value === m.id || voz.carregando.value === m.id ? voz.calar() : voz.falar(m.id, m.texto, 'uilber')"
+            >
+              <LoaderCircle v-if="voz.carregando.value === m.id" class="iu-icone iu-gira" aria-hidden="true" />
+              <Square v-else-if="voz.falando.value === m.id" class="iu-icone" aria-hidden="true" />
+              <Volume2 v-else class="iu-icone" aria-hidden="true" />
+              {{ voz.carregando.value === m.id ? 'Preparando a voz…' : voz.falando.value === m.id ? 'Parar' : 'Ouvir na voz do Uilber' }}
+            </button>
           </article>
         </template>
 
@@ -169,6 +248,14 @@ watch(enviando, (agora, antes) => {
         <p v-else-if="estado.aviso" class="iu-agente__aviso" role="alert">{{ estado.aviso }}</p>
       </div>
 
+      <div v-if="trecho" class="iu-agente__trecho">
+        <p class="iu-agente__trecho-rotulo">Trecho selecionado<template v-if="trecho.secao"> · {{ trecho.secao }}</template></p>
+        <q>{{ trecho.texto.length > 300 ? `${trecho.texto.slice(0, 300)}…` : trecho.texto }}</q>
+        <button type="button" class="iu-botao iu-botao--icone" aria-label="Descartar o trecho" title="Descartar o trecho" @click="trecho = null">
+          <X class="iu-icone" aria-hidden="true" />
+        </button>
+      </div>
+
       <form class="iu-agente__entrada" @submit.prevent="mandar()">
         <label for="iu-agente-pergunta" class="iu-so-leitor">Sua pergunta</label>
         <textarea
@@ -177,7 +264,7 @@ watch(enviando, (agora, antes) => {
           v-model="pergunta"
           rows="1"
           maxlength="4000"
-          placeholder="Pergunte sobre um processo…"
+          :placeholder="trecho ? 'O que você quer saber sobre esse trecho?' : 'Pergunte sobre um processo…'"
           :disabled="estado.situacao === 'sessao'"
           @input="ajustarAltura"
           @keydown="aoTeclar"
@@ -260,6 +347,23 @@ watch(enviando, (agora, antes) => {
 .iu-agente__texto strong { font-weight: 600; }
 .iu-agente__subtitulo { font-weight: 600; }
 .iu-agente__fontes { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--iu-divisor); font-size: 13px; color: var(--iu-tinta-48); }
+.iu-agente__marca--falando { border-radius: 50%; animation: iu-falando 1.2s ease-in-out infinite; }
+@keyframes iu-falando { 0%, 100% { box-shadow: 0 0 0 0 rgba(0, 102, 204, 0.35); } 50% { box-shadow: 0 0 0 6px rgba(0, 102, 204, 0); } }
+.iu-agente__citacao { display: block; margin-bottom: 6px; padding-left: 8px; border-left: 2px solid rgba(255, 255, 255, 0.6); font-size: 13px; opacity: 0.9; quotes: none; }
+.iu-agente__ouvir {
+  margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px;
+  background: var(--iu-branco); border: 1px solid var(--iu-linha); border-radius: 9999px;
+  font-size: 13px; font-weight: 600; color: var(--iu-tinta-80); cursor: pointer;
+}
+.iu-agente__ouvir:hover, .iu-agente__ouvir[aria-pressed="true"] { background: var(--iu-azul-claro); border-color: var(--iu-azul-borda); color: var(--iu-azul); }
+.iu-agente__ouvir .iu-icone { width: 15px; height: 15px; }
+.iu-agente__trecho {
+  position: relative; margin: 10px 12px 0; padding: 8px 48px 10px 12px;
+  background: var(--iu-azul-claro); border: 1px solid var(--iu-azul-borda); border-radius: var(--iu-raio-campo);
+}
+.iu-agente__trecho-rotulo { font-size: 13px; font-weight: 600; color: var(--iu-azul); }
+.iu-agente__trecho q { display: block; margin-top: 2px; font-size: 13px; line-height: 1.4; color: var(--iu-tinta-80); quotes: none; max-height: 5.6em; overflow: hidden; }
+.iu-agente__trecho .iu-botao--icone { position: absolute; top: 0; right: 0; }
 .iu-agente__erro { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 14px; color: var(--iu-erro); }
 
 .iu-agente__consultando { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--iu-tinta-80); }
@@ -294,6 +398,7 @@ watch(enviando, (agora, antes) => {
 @media (prefers-reduced-motion: reduce) {
   .iu-agente__botao { animation: none; transition: none; }
   .iu-agente__pontos i { animation: none; opacity: 0.7; }
+  .iu-agente__marca--falando { animation: none; box-shadow: 0 0 0 3px var(--iu-azul-borda); }
 }
 @media print { .iu-agente { display: none; } }
 </style>
