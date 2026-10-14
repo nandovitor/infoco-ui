@@ -25,5 +25,7 @@ export type { OpcaoSeletor } from './componentes/Seletor.vue';
 export { default as Selo } from './componentes/Selo.vue';
 export { default as BlurText } from './vuebits/BlurText.vue';
 export { default as SplitText } from './vuebits/SplitText.vue';
-export { AgenteInfoco, montarAgente } from './agente/montar';
+// O agente montado (com o estilo e o símbolo) fica em 'infoco-ui/agente': importá-lo
+// daqui faria toda tela carregar o agente junto.
+export { default as AgenteInfoco } from './agente/AgenteInfoco.vue';
 export { achatar, anunciar, urlSegura } from './util';
