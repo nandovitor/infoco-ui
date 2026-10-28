@@ -36,6 +36,12 @@ const props = withDefaults(defineProps<{
   descricao?: string;
   /** A linha embaixo do nome, no cabeçalho do painel. */
   subtitulo?: string;
+  /** O título do painel vazio. */
+  boasVindas?: string;
+  /** O texto do campo vazio. */
+  placeholder?: string;
+  /** A linha de baixo, sobre de onde vêm os dados. */
+  rodape?: string;
   /** Onde a pessoa está na página, lido a cada pergunta. */
   contexto?: () => Contexto | undefined;
   /** Liga a voz: leitura automática da resposta e, com `uilber`, a voz dele. */
@@ -50,6 +56,9 @@ const props = withDefaults(defineProps<{
   ],
   descricao: 'Licitações, contratos e pagamentos no PNCP e no TCM-BA, processos coletados do e-TCM e a base do TCU.',
   subtitulo: 'PNCP, TCM-BA e outras fontes públicas',
+  boasVindas: 'Pergunte sobre um processo',
+  placeholder: 'Pergunte sobre um processo…',
+  rodape: 'O agente só consulta fontes públicas. Confira os dados na fonte antes de usar.',
 });
 
 const { estado, enviar, repetir, parar, nova } = usarConversa(props.endpoint);
@@ -195,8 +204,8 @@ watch(enviando, (agora, antes) => {
 
       <div ref="rolagem" class="iu-agente__mensagens">
         <div v-if="vazia" class="iu-agente__vazio">
-          <p v-if="semMovimento" class="iu-agente__boas-vindas">Pergunte sobre um processo</p>
-          <BlurText v-else text="Pergunte sobre um processo" :delay="90" animate-by="words" direction="top" class-name="iu-agente__boas-vindas" />
+          <p v-if="semMovimento" class="iu-agente__boas-vindas">{{ boasVindas }}</p>
+          <BlurText v-else :text="boasVindas" :delay="90" animate-by="words" direction="top" class-name="iu-agente__boas-vindas" />
           <p class="iu-agente__explica">{{ descricao }}</p>
           <ul class="iu-agente__exemplos" aria-label="Perguntas de exemplo">
             <li v-for="ex in exemplos.slice(0, 4)" :key="ex">
@@ -267,7 +276,7 @@ watch(enviando, (agora, antes) => {
           v-model="pergunta"
           rows="1"
           maxlength="4000"
-          :placeholder="trecho ? 'O que você quer saber sobre esse trecho?' : 'Pergunte sobre um processo…'"
+          :placeholder="trecho ? 'O que você quer saber sobre esse trecho?' : placeholder"
           :disabled="estado.situacao === 'sessao'"
           @input="ajustarAltura"
           @keydown="aoTeclar"
@@ -279,7 +288,7 @@ watch(enviando, (agora, antes) => {
           <ArrowUp class="iu-icone" aria-hidden="true" />
         </button>
       </form>
-      <p class="iu-agente__rodape">O agente só consulta fontes públicas. Confira os dados na fonte antes de usar.</p>
+      <p class="iu-agente__rodape">{{ rodape }}</p>
     </section>
   </div>
 </template>

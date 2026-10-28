@@ -16,6 +16,10 @@ export interface OpcoesAgente {
   descricao?: string;
   /** A linha embaixo do nome, no cabeçalho. */
   subtitulo?: string;
+  /** Título do painel vazio, texto do campo e linha de baixo (padrão: os do PNCP/TCM). */
+  boasVindas?: string;
+  placeholder?: string;
+  rodape?: string;
   /** Onde a pessoa está na página (seção, trecho), lido a cada pergunta. */
   contexto?: () => Contexto | undefined;
   /** Liga a leitura em voz alta (e a voz do Uilber). */
